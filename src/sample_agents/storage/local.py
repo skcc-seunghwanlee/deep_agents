@@ -5,13 +5,13 @@ from pathlib import Path
 
 class LocalFileStorage:
     def __init__(self, root: Path) -> None:
-        self.root = root
+        self.root = root.expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
     def save_upload(self, thread_id: str, filename: str, content: bytes) -> str:
         directory = self.root / thread_id / "originals"
         directory.mkdir(parents=True, exist_ok=True)
-        path = directory / filename
+        path = (directory / filename).resolve()
         path.write_bytes(content)
         return path.as_uri()
 

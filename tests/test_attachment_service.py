@@ -33,3 +33,13 @@ def test_attach_rejects_pdf(tmp_path: Path):
 
     with pytest.raises(ValueError, match="Only .md and .txt"):
         service.attach_bytes(thread.id, "policy.pdf", b"pdf")
+
+
+def test_local_storage_with_relative_root_returns_file_uri(tmp_path: Path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    storage = LocalFileStorage(Path(".local_storage"))
+
+    uri = storage.save_upload("thread-1", "policy.md", b"content")
+
+    assert uri.startswith("file://")
+    assert storage.read_uri(uri) == b"content"

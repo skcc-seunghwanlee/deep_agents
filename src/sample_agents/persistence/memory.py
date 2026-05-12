@@ -56,6 +56,9 @@ class InMemoryConversationRepository:
     def save_approval(self, approval: ApprovalRequest) -> None:
         self.approvals[approval.id] = approval
 
+    def get_approval(self, approval_id: str) -> ApprovalRequest | None:
+        return self.approvals.get(approval_id)
+
     def get_pending_approval(self, thread_id: str) -> ApprovalRequest | None:
         for approval in self.approvals.values():
             if approval.thread_id == thread_id and approval.status == ApprovalStatus.PENDING:
@@ -64,7 +67,7 @@ class InMemoryConversationRepository:
 
     def decide_approval(self, approval_id: str, status: ApprovalStatus) -> ApprovalRequest | None:
         approval = self.approvals.get(approval_id)
-        if approval is None:
+        if approval is None or approval.status != ApprovalStatus.PENDING:
             return None
         decided = replace(approval, status=status, decided_at=utc_now())
         self.approvals[approval_id] = decided

@@ -10,10 +10,16 @@ class ApprovalService:
         self.repository = repository
 
     def decide(self, approval_id: str, approved: bool) -> str:
+        current = self.repository.get_approval(approval_id)
+        if current is None:
+            raise ValueError(f"Approval not found: {approval_id}")
+        if current.status != ApprovalStatus.PENDING:
+            return f"이미 처리된 승인 요청입니다. status={current.status.value}"
+
         status = ApprovalStatus.APPROVED if approved else ApprovalStatus.REJECTED
         approval = self.repository.decide_approval(approval_id, status)
         if approval is None:
-            raise ValueError(f"Approval not found: {approval_id}")
+            return "이미 처리된 승인 요청입니다."
         if not approved:
             return "승인이 거절되어 작업을 실행하지 않았습니다."
         result = send_customer_reply(approval.preview)

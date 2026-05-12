@@ -199,6 +199,22 @@ class SQLiteConversationRepository:
                 ),
             )
 
+    def get_approval(self, approval_id: str) -> ApprovalRequest | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,)).fetchone()
+        if row is None:
+            return None
+        return ApprovalRequest(
+            id=row["id"],
+            thread_id=row["thread_id"],
+            agent_run_id=row["agent_run_id"],
+            requested_action=row["requested_action"],
+            preview=row["preview"],
+            status=ApprovalStatus(row["status"]),
+            created_at=_dt(row["created_at"]),
+            decided_at=_dt(row["decided_at"]) if row["decided_at"] else None,
+        )
+
     def get_pending_approval(self, thread_id: str) -> ApprovalRequest | None:
         with self._connect() as connection:
             row = connection.execute(
@@ -219,24 +235,23 @@ class SQLiteConversationRepository:
         )
 
     def decide_approval(self, approval_id: str, status: ApprovalStatus) -> ApprovalRequest | None:
-        pending = None
         with self._connect() as connection:
             row = connection.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,)).fetchone()
-            if row is not None:
-                pending = ApprovalRequest(
-                    id=row["id"],
-                    thread_id=row["thread_id"],
-                    agent_run_id=row["agent_run_id"],
-                    requested_action=row["requested_action"],
-                    preview=row["preview"],
-                    status=ApprovalStatus(row["status"]),
-                    created_at=_dt(row["created_at"]),
-                    decided_at=_dt(row["decided_at"]) if row["decided_at"] else None,
-                )
-                decided = replace(pending, status=status, decided_at=utc_now())
-                connection.execute(
-                    "UPDATE approvals SET status = ?, decided_at = ? WHERE id = ?",
-                    (decided.status.value, decided.decided_at.isoformat(), approval_id),
-                )
-                return decided
-        return None
+            if row is None or ApprovalStatus(row["status"]) != ApprovalStatus.PENDING:
+                return None
+            pending = ApprovalRequest(
+                id=row["id"],
+                thread_id=row["thread_id"],
+                agent_run_id=row["agent_run_id"],
+                requested_action=row["requested_action"],
+                preview=row["preview"],
+                status=ApprovalStatus(row["status"]),
+                created_at=_dt(row["created_at"]),
+                decided_at=_dt(row["decided_at"]) if row["decided_at"] else None,
+            )
+            decided = replace(pending, status=status, decided_at=utc_now())
+            connection.execute(
+                "UPDATE approvals SET status = ?, decided_at = ? WHERE id = ?",
+                (decided.status.value, decided.decided_at.isoformat(), approval_id),
+            )
+            return decided
