@@ -1,4 +1,4 @@
-# Deep Agents FastAPI Sample
+# Deep Agents FastAPI 샘플
 
 실제 프로젝트로 확장하기 쉬운 **FastAPI 기반 deep agents 샘플**입니다. 데모는 문서 검토(Document Review) 시나리오를 사용하지만, 내부 구조는 API adapter, service layer, repository, storage, model/search provider를 분리해 FastAPI, Slack bot, batch worker, Web UI로 확장할 수 있게 만들었습니다.
 
@@ -83,6 +83,17 @@ curl -s -X POST http://127.0.0.1:8000/approvals/{approval_id}/decision \
   -H 'Content-Type: application/json' \
   -d '{"approved":true}'
 ```
+
+## HTTP CLI 데모
+
+FastAPI 서버를 띄운 뒤 `tests/cli.py`로 같은 API 계약을 터미널 채팅 형태로 가볍게 호출할 수 있습니다. 이 파일은 테스트용 보조 스크립트라서 의도적으로 최소 구현만 담았습니다.
+
+```bash
+uvicorn main:app --reload
+python tests/cli.py --approve
+```
+
+이 CLI는 별도 SDK 없이 표준 라이브러리 `urllib`만 사용해 `/threads`, `/attachments`, `/messages`, `/workspace`, `/approvals` endpoint를 호출합니다.
 
 ## 실제 프로젝트 확장 포인트
 

@@ -31,15 +31,28 @@ def create_chat_model(settings: Settings) -> Any:
     validate_settings(settings)
     if settings.model_provider == "fake":
         return FakeChatModel(settings.model_name)
+
+    module = _load_langchain_chat_models(settings.model_provider)
     if settings.model_provider == "openai":
-        if importlib.util.find_spec("langchain.chat_models") is not None:
-            module = importlib.import_module("langchain.chat_models")
-            return module.init_chat_model(f"openai:{settings.model_name}")
+        return module.init_chat_model(f"openai:{settings.model_name}")
     if settings.model_provider == "ollama":
-        if importlib.util.find_spec("langchain.chat_models") is not None:
-            module = importlib.import_module("langchain.chat_models")
-            return module.init_chat_model(f"ollama:{settings.model_name}", base_url=settings.ollama_base_url)
+        return module.init_chat_model(f"ollama:{settings.model_name}", base_url=settings.ollama_base_url)
+
     raise RuntimeError(
         f"Provider {settings.model_provider!r} requires optional model dependencies. "
         "Install the matching extra or use MODEL_PROVIDER=fake."
     )
+
+
+def _load_langchain_chat_models(provider: str) -> Any:
+    try:
+        if importlib.util.find_spec("langchain") is None:
+            raise ModuleNotFoundError("langchain")
+        if importlib.util.find_spec("langchain.chat_models") is None:
+            raise ModuleNotFoundError("langchain.chat_models")
+        return importlib.import_module("langchain.chat_models")
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            f"Provider {provider!r} requires optional LangChain dependencies. "
+            "Install the matching extra or use MODEL_PROVIDER=fake."
+        ) from exc

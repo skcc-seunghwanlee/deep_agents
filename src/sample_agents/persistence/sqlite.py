@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -235,23 +234,27 @@ class SQLiteConversationRepository:
         )
 
     def decide_approval(self, approval_id: str, status: ApprovalStatus) -> ApprovalRequest | None:
+        decided_at = utc_now()
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM approvals WHERE id = ?", (approval_id,)).fetchone()
-            if row is None or ApprovalStatus(row["status"]) != ApprovalStatus.PENDING:
-                return None
-            pending = ApprovalRequest(
-                id=row["id"],
-                thread_id=row["thread_id"],
-                agent_run_id=row["agent_run_id"],
-                requested_action=row["requested_action"],
-                preview=row["preview"],
-                status=ApprovalStatus(row["status"]),
-                created_at=_dt(row["created_at"]),
-                decided_at=_dt(row["decided_at"]) if row["decided_at"] else None,
+            cursor = connection.execute(
+                """
+                UPDATE approvals
+                SET status = ?, decided_at = ?
+                WHERE id = ? AND status = ?
+                RETURNING *
+                """,
+                (status.value, decided_at.isoformat(), approval_id, ApprovalStatus.PENDING.value),
             )
-            decided = replace(pending, status=status, decided_at=utc_now())
-            connection.execute(
-                "UPDATE approvals SET status = ?, decided_at = ? WHERE id = ?",
-                (decided.status.value, decided.decided_at.isoformat(), approval_id),
-            )
-            return decided
+            row = cursor.fetchone()
+        if row is None:
+            return None
+        return ApprovalRequest(
+            id=row["id"],
+            thread_id=row["thread_id"],
+            agent_run_id=row["agent_run_id"],
+            requested_action=row["requested_action"],
+            preview=row["preview"],
+            status=ApprovalStatus(row["status"]),
+            created_at=_dt(row["created_at"]),
+            decided_at=_dt(row["decided_at"]) if row["decided_at"] else None,
+        )
