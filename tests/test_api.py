@@ -1,6 +1,10 @@
+import importlib.util
+
 import pytest
 
 fastapi = pytest.importorskip("fastapi")
+if importlib.util.find_spec("httpx") is None:
+    pytest.skip("fastapi TestClient requires httpx", allow_module_level=True)
 from fastapi.testclient import TestClient
 
 from sample_agents.app import create_app
