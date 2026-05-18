@@ -43,3 +43,22 @@ def test_local_storage_with_relative_root_returns_file_uri(tmp_path: Path, monke
 
     assert uri.startswith("file://")
     assert storage.read_uri(uri) == b"content"
+
+
+def test_hydrate_workspace_restores_inputs_from_persisted_attachments(tmp_path: Path):
+    from sample_agents.persistence.sqlite import SQLiteConversationRepository
+
+    database_url = f"sqlite:///{tmp_path / 'demo.db'}"
+    storage = LocalFileStorage(tmp_path / "storage")
+    first_repo = SQLiteConversationRepository(database_url)
+    thread = first_repo.create_thread()
+    first_workspaces = WorkspaceRegistry()
+    AttachmentService(first_repo, storage, first_workspaces).attach_bytes(thread.id, "a.md", b"# Policy")
+
+    second_repo = SQLiteConversationRepository(database_url)
+    second_workspaces = WorkspaceRegistry()
+    service = AttachmentService(second_repo, storage, second_workspaces)
+
+    assert second_workspaces.for_thread(thread.id).read("/inputs/a.md") is None
+    assert service.hydrate_workspace(thread.id) == 1
+    assert second_workspaces.for_thread(thread.id).read("/inputs/a.md") == "# Policy"

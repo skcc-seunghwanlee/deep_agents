@@ -158,6 +158,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         container: Annotated[AppContainer, Depends(get_container)],
     ) -> AgentMessageResponse:
         try:
+            container.attachment_service.hydrate_workspace(thread_id)
             message, response = container.chat_service.handle_message(thread_id, request.content)
             return AgentMessageResponse(
                 message=_message_response(message),
@@ -187,6 +188,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def list_workspace(thread_id: str, container: Annotated[AppContainer, Depends(get_container)]):
         if container.repository.get_thread(thread_id) is None:
             raise HTTPException(status_code=404, detail=f"Thread not found: {thread_id}")
+        container.attachment_service.hydrate_workspace(thread_id)
         return WorkspaceFilesResponse(files=container.workspaces.for_thread(thread_id).list_paths())
 
     @app.get("/threads/{thread_id}/workspace/read", response_model=WorkspaceFileResponse)
@@ -197,6 +199,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ) -> WorkspaceFileResponse:
         if container.repository.get_thread(thread_id) is None:
             raise HTTPException(status_code=404, detail=f"Thread not found: {thread_id}")
+        container.attachment_service.hydrate_workspace(thread_id)
         content = container.workspaces.for_thread(thread_id).read(path)
         if content is None:
             raise HTTPException(status_code=404, detail=f"Workspace file not found: {path}")

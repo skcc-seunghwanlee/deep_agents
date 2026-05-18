@@ -55,3 +55,16 @@ class AttachmentService:
         )
         self.repository.save_attachment(attachment)
         return attachment
+
+    def hydrate_workspace(self, thread_id: str) -> int:
+        workspace = self.workspaces.for_thread(thread_id)
+        hydrated = 0
+        for attachment in self.repository.list_attachments(thread_id):
+            if not attachment.agent_file_path.startswith("/inputs/"):
+                continue
+            if workspace.read(attachment.agent_file_path) is not None:
+                continue
+            text = self.storage.read_uri(attachment.storage_uri).decode("utf-8")
+            workspace.write(attachment.agent_file_path, text)
+            hydrated += 1
+        return hydrated
