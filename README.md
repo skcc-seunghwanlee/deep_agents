@@ -42,6 +42,19 @@ export MODEL_NAME=qwen2.5:7b
 export OLLAMA_BASE_URL=http://localhost:11434
 ```
 
+## 로컬 실행 체크
+
+`http://127.0.0.1:8000/docs` 접속 시 `/openapi.json`에서 500 오류가 나면 `.env` 값 문제가 아니라 FastAPI dependency annotation 처리 문제일 수 있습니다. 최신 코드를 받은 뒤 아래처럼 확인하세요.
+
+```bash
+python - <<'PY'
+from sample_agents.app import app
+print(app.openapi()["info"])
+PY
+```
+
+기본 fake provider는 OpenAI API key 없이 실행됩니다. 실제 OpenAI/Ollama provider를 사용할 때만 위 환경변수를 채우면 됩니다.
+
 ## API 사용 예시
 
 ### 1. Thread 생성
