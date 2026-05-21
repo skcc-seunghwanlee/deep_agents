@@ -62,3 +62,12 @@ def test_hydrate_workspace_restores_inputs_from_persisted_attachments(tmp_path: 
     assert second_workspaces.for_thread(thread.id).read("/inputs/a.md") is None
     assert service.hydrate_workspace(thread.id) == 1
     assert second_workspaces.for_thread(thread.id).read("/inputs/a.md") == "# Policy"
+
+
+def test_attach_rejects_non_utf8_text(tmp_path: Path):
+    repo = InMemoryConversationRepository()
+    thread = repo.create_thread()
+    service = AttachmentService(repo, LocalFileStorage(tmp_path), WorkspaceRegistry())
+
+    with pytest.raises(ValueError, match="UTF-8"):
+        service.attach_bytes(thread.id, "broken.txt", b"\xff\xfe\xfd")

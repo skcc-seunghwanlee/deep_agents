@@ -20,7 +20,7 @@ from sample_agents.storage.local import LocalFileStorage
 
 
 class CreateThreadRequest(BaseModel):
-    title: str = "New conversation"
+    title: str = Field(default="New conversation", description="새 대화방 제목입니다.")
 
 
 class ThreadResponse(BaseModel):
@@ -30,7 +30,7 @@ class ThreadResponse(BaseModel):
 
 
 class SendMessageRequest(BaseModel):
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, description="에이전트에게 보낼 사용자 메시지입니다.")
 
 
 class MessageResponse(BaseModel):
@@ -64,7 +64,7 @@ class WorkspaceFileResponse(BaseModel):
 
 
 class ApprovalDecisionRequest(BaseModel):
-    approved: bool
+    approved: bool = Field(description="승인 여부입니다. true면 실행, false면 거절합니다.")
 
 
 class ApprovalDecisionResponse(BaseModel):
@@ -123,35 +123,73 @@ def _approval_dict(approval: ApprovalRequest | None) -> dict | None:
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or load_settings()
     container = AppContainer(settings)
-    app = FastAPI(title=settings.app_name, version="0.1.0")
+    app = FastAPI(
+        title=settings.app_name,
+        version="0.1.0",
+        description=(
+            "문서 첨부 기반 에이전트 데모 API입니다. "
+            "Thread 생성, 첨부 업로드, 메시지 처리, 워크스페이스 조회, 승인 흐름을 제공합니다."
+        ),
+    )
     app.state.container = container
 
     def get_container() -> AppContainer:
         return app.state.container
 
-    @app.get("/health")
+    @app.get(
+        "/health",
+        summary="헬스 체크",
+        description="서버 프로세스가 요청을 처리 가능한 상태인지 확인합니다.",
+        tags=["system"],
+    )
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/model")
+    @app.get(
+        "/model",
+        summary="현재 모델 설정 조회",
+        description="현재 앱이 사용하는 모델 provider와 모델명을 반환합니다.",
+        tags=["system"],
+    )
     def current_model(container: Annotated[AppContainer, Depends(get_container)]) -> dict[str, str]:
         return asdict(model_info(container.settings))
 
-    @app.post("/threads", response_model=ThreadResponse)
+    @app.post(
+        "/threads",
+        response_model=ThreadResponse,
+        summary="대화방 생성",
+        description="새 thread를 생성합니다. 이후 첨부 업로드와 메시지 전송은 이 thread_id를 사용합니다.",
+        tags=["threads"],
+    )
     def create_thread(
         request: CreateThreadRequest,
         container: Annotated[AppContainer, Depends(get_container)],
     ) -> ThreadResponse:
         return _thread_response(container.chat_service.create_thread(request.title))
 
-    @app.get("/threads/{thread_id}/messages", response_model=list[MessageResponse])
+    @app.get(
+        "/threads/{thread_id}/messages",
+        response_model=list[MessageResponse],
+        summary="대화 이력 조회",
+        description="해당 thread의 user/assistant 메시지 목록을 생성 시각 순으로 반환합니다.",
+        tags=["threads"],
+    )
     def list_messages(thread_id: str, container: Annotated[AppContainer, Depends(get_container)]):
         try:
             return [_message_response(message) for message in container.chat_service.list_messages(thread_id)]
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    @app.post("/threads/{thread_id}/messages", response_model=AgentMessageResponse)
+    @app.post(
+        "/threads/{thread_id}/messages",
+        response_model=AgentMessageResponse,
+        summary="에이전트 메시지 실행",
+        description=(
+            "사용자 메시지를 저장하고 에이전트를 실행합니다. "
+            "응답 본문, 실행 계획(plan), 생성된 파일 목록, 승인 필요 정보(pending_approval)를 반환합니다."
+        ),
+        tags=["threads"],
+    )
     def send_message(
         thread_id: str,
         request: SendMessageRequest,
@@ -169,7 +207,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    @app.post("/threads/{thread_id}/attachments", response_model=AttachmentResponse)
+    @app.post(
+        "/threads/{thread_id}/attachments",
+        response_model=AttachmentResponse,
+        summary="파일 첨부 업로드",
+        description=(
+            "thread에 파일을 첨부합니다. 현재 샘플 MVP는 .md/.txt만 지원하며 "
+            "워크스페이스 /inputs/* 경로로 등록됩니다."
+        ),
+        tags=["attachments"],
+    )
     async def upload_attachment(
         thread_id: str,
         file: Annotated[UploadFile, File()],
@@ -184,14 +231,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    @app.get("/threads/{thread_id}/workspace", response_model=WorkspaceFilesResponse)
+    @app.get(
+        "/threads/{thread_id}/workspace",
+        response_model=WorkspaceFilesResponse,
+        summary="워크스페이스 파일 목록 조회",
+        description="해당 thread의 워크스페이스 파일 경로 목록(/inputs, /work, /research, /outputs)을 반환합니다.",
+        tags=["workspace"],
+    )
     def list_workspace(thread_id: str, container: Annotated[AppContainer, Depends(get_container)]):
         if container.repository.get_thread(thread_id) is None:
             raise HTTPException(status_code=404, detail=f"Thread not found: {thread_id}")
         container.attachment_service.hydrate_workspace(thread_id)
         return WorkspaceFilesResponse(files=container.workspaces.for_thread(thread_id).list_paths())
 
-    @app.get("/threads/{thread_id}/workspace/read", response_model=WorkspaceFileResponse)
+    @app.get(
+        "/threads/{thread_id}/workspace/read",
+        response_model=WorkspaceFileResponse,
+        summary="워크스페이스 파일 내용 조회",
+        description="지정한 워크스페이스 파일 경로의 텍스트 내용을 반환합니다.",
+        tags=["workspace"],
+    )
     def read_workspace_file(
         thread_id: str,
         path: str,
@@ -205,7 +264,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"Workspace file not found: {path}")
         return WorkspaceFileResponse(path=path, content=content)
 
-    @app.post("/approvals/{approval_id}/decision", response_model=ApprovalDecisionResponse)
+    @app.post(
+        "/approvals/{approval_id}/decision",
+        response_model=ApprovalDecisionResponse,
+        summary="승인 요청 처리",
+        description=(
+            "pending 상태 승인 요청을 승인/거절 처리합니다. "
+            "승인 시 mock customer reply tool이 실행되고, 중복 요청은 idempotent하게 처리됩니다."
+        ),
+        tags=["approvals"],
+    )
     def decide_approval(
         approval_id: str,
         request: ApprovalDecisionRequest,

@@ -36,10 +36,16 @@ class AgentService:
         )
         self.repository.save_agent_run(run)
         workspace = self.workspaces.for_thread(thread_id)
-        if self.settings.model_provider == "fake":
-            response = self._run_fake_document_agent(thread_id, run.id, user_content, workspace)
-        else:
-            response = self._run_deep_agent(thread_id, user_content, workspace)
+        try:
+            if self.settings.model_provider == "fake":
+                response = self._run_fake_document_agent(thread_id, run.id, user_content, workspace)
+            else:
+                response = self._run_deep_agent(thread_id, user_content, workspace)
+        except Exception as exc:
+            self.repository.update_agent_run(
+                replace(run, status=RunStatus.FAILED, error_message=str(exc), finished_at=utc_now())
+            )
+            raise
         self.repository.update_agent_run(replace(run, status=RunStatus.SUCCEEDED, finished_at=utc_now()))
         return response
 

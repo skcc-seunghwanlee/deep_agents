@@ -1,3 +1,4 @@
+import pytest
 from sample_agents.config import Settings
 from sample_agents.integrations.search_providers import MockSearchProvider
 from sample_agents.persistence.memory import InMemoryConversationRepository
@@ -27,3 +28,29 @@ def test_chat_service_generates_workspace_files(tmp_path):
     assert "/outputs/customer_reply.md" in response.generated_files
     assert workspaces.for_thread(thread.id).read("/outputs/risks.md") is not None
     assert len(repo.list_messages(thread.id)) == 2
+
+
+def test_agent_run_marks_failed_on_exception(tmp_path, monkeypatch):
+    settings = Settings(model_provider="fake", model_name="fake")
+    repo = InMemoryConversationRepository()
+    workspaces = WorkspaceRegistry()
+    thread = repo.create_thread()
+    AttachmentService(repo, LocalFileStorage(tmp_path), workspaces).attach_bytes(
+        thread.id,
+        "policy.md",
+        "# 정책\n개인정보 보관 기간".encode(),
+    )
+    agent = AgentService(settings, repo, workspaces, MockSearchProvider())
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(agent, "_run_fake_document_agent", _boom)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        agent.run(thread.id, "msg_trigger", "요약해줘")
+
+    last_run = list(repo.runs.values())[-1]
+    assert last_run.status.value == "failed"
+    assert last_run.error_message == "boom"
+    assert last_run.finished_at is not None

@@ -108,6 +108,40 @@ python tests/cli.py --approve
 
 이 CLI는 별도 SDK 없이 표준 라이브러리 `urllib`만 사용해 `/threads`, `/attachments`, `/messages`, `/workspace`, `/approvals` endpoint를 호출합니다.
 
+
+## CLI로 실제 대화 데모하기
+
+FastAPI 서버가 이미 켜져 있다면 아래 명령으로 바로 대화형 데모를 실행할 수 있습니다.
+
+```bash
+python tests/cli.py --approve
+```
+
+기본 동작:
+- thread 생성
+- `examples/data/sample_policy.md` 파일 첨부
+- 3개 메시지 순차 실행
+- `/files`, `/read /outputs/summary.md` 출력
+- 승인 2회 호출(중복 승인 idempotency 확인)
+
+### 파일 첨부 경로 바꿔서 실행
+
+```bash
+python tests/cli.py --file /절대/경로/your_policy.md --approve
+```
+
+지원 첨부 형식은 `.md`, `.txt`입니다.
+
+### 메시지 직접 지정
+
+```bash
+python tests/cli.py \
+  --message "이 문서 핵심만 요약해줘" \
+  --message "리스크 3개만 뽑아줘" \
+  --message "고객 답변 초안 만들고 발송 준비해줘" \
+  --approve
+```
+
 ## 실제 프로젝트 확장 포인트
 
 - `sample_agents.app`: FastAPI adapter와 dependency wiring
