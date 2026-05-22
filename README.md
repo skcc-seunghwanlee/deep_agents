@@ -109,6 +109,34 @@ python tests/cli.py --approve
 이 CLI는 별도 SDK 없이 표준 라이브러리 `urllib`만 사용해 `/threads`, `/attachments`, `/messages`, `/workspace`, `/approvals` endpoint를 호출합니다.
 
 
+## 대화형 CLI 데모(발표용)
+
+기존 `tests/cli.py`는 고정 시나리오를 자동 실행하는 스모크 데모입니다.
+실제 발표/라이브 데모에서는 대화형 인터페이스를 권장합니다.
+
+```bash
+python -m sample_agents.cli_chat
+```
+
+### 대화형 CLI 주요 명령어
+
+- `/attach <파일경로>`: `.md`/`.txt` 첨부
+- `/files`: 워크스페이스 파일 목록 확인
+- `/read <경로>`: 파일 내용 확인
+- `/approve <approval_id>`: 승인 실행
+- `/model`: 현재 모델 설정 확인
+- `/help`, `/exit`
+
+### 발표 시연 추천 흐름
+
+1. `/attach examples/data/sample_policy.md`
+2. `이 문서 핵심 요약하고 리스크 찾아줘`
+3. `최근 기준도 검색해서 고객 답변 초안 만들어줘`
+4. `이거 발송해줘`
+5. 출력된 approval_id로 `/approve <approval_id>` 실행
+
+이 흐름으로 deep agents 하네스의 핵심 포인트(워크스페이스 파일 생성, 검색 도구 호출, 승인 기반 실행 통제)를 한 번에 보여줄 수 있습니다.
+
 ## CLI로 실제 대화 데모하기
 
 FastAPI 서버가 이미 켜져 있다면 아래 명령으로 바로 대화형 데모를 실행할 수 있습니다.

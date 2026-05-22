@@ -71,3 +71,23 @@ def test_attach_rejects_non_utf8_text(tmp_path: Path):
 
     with pytest.raises(ValueError, match="UTF-8"):
         service.attach_bytes(thread.id, "broken.txt", b"\xff\xfe\xfd")
+
+
+def test_local_storage_decodes_percent_escaped_file_uri(tmp_path: Path):
+    storage = LocalFileStorage(tmp_path / "storage with space")
+
+    uri = storage.save_upload("thread-1", "한글 문서.md", "내용".encode("utf-8"))
+
+    assert "%20" in uri or "%ED" in uri
+    assert storage.read_uri(uri) == "내용".encode("utf-8")
+
+
+def test_local_storage_preserves_each_upload_for_same_filename(tmp_path: Path):
+    storage = LocalFileStorage(tmp_path / "storage")
+
+    uri1 = storage.save_upload("thread-1", "policy.md", b"first")
+    uri2 = storage.save_upload("thread-1", "policy.md", b"second")
+
+    assert uri1 != uri2
+    assert storage.read_uri(uri1) == b"first"
+    assert storage.read_uri(uri2) == b"second"
