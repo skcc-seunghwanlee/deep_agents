@@ -195,6 +195,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request: SendMessageRequest,
         container: Annotated[AppContainer, Depends(get_container)],
     ) -> AgentMessageResponse:
+        if container.repository.get_thread(thread_id) is None:
+            raise HTTPException(status_code=404, detail=f"Thread not found: {thread_id}")
         try:
             container.attachment_service.hydrate_workspace(thread_id)
             message, response = container.chat_service.handle_message(thread_id, request.content)

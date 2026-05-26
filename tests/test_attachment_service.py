@@ -91,3 +91,24 @@ def test_local_storage_preserves_each_upload_for_same_filename(tmp_path: Path):
     assert uri1 != uri2
     assert storage.read_uri(uri1) == b"first"
     assert storage.read_uri(uri2) == b"second"
+
+
+def test_hydrate_workspace_uses_latest_content_for_same_agent_path(tmp_path: Path):
+    from sample_agents.persistence.sqlite import SQLiteConversationRepository
+
+    database_url = f"sqlite:///{tmp_path / 'demo.db'}"
+    storage = LocalFileStorage(tmp_path / "storage")
+    first_repo = SQLiteConversationRepository(database_url)
+    thread = first_repo.create_thread()
+    first_workspaces = WorkspaceRegistry()
+    service = AttachmentService(first_repo, storage, first_workspaces)
+
+    service.attach_bytes(thread.id, "same.md", b"first version")
+    service.attach_bytes(thread.id, "same.md", b"latest version")
+
+    second_repo = SQLiteConversationRepository(database_url)
+    second_workspaces = WorkspaceRegistry()
+    hydrated = AttachmentService(second_repo, storage, second_workspaces).hydrate_workspace(thread.id)
+
+    assert hydrated == 2
+    assert second_workspaces.for_thread(thread.id).read("/inputs/same.md") == "latest version"
