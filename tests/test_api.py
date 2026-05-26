@@ -79,3 +79,20 @@ def test_fastapi_rehydrates_inputs_after_restart(tmp_path):
     body = reply.json()
     assert "아직 첨부된 문서가 없습니다" not in body["message"]["content"]
     assert "/outputs/summary.md" in body["generated_files"]
+
+
+def test_send_message_invalid_thread_does_not_create_workspace(tmp_path):
+    app = create_app(
+        Settings(
+            model_provider="fake",
+            model_name="fake",
+            database_url="memory",
+            local_storage_dir=tmp_path,
+        )
+    )
+    client = TestClient(app)
+
+    response = client.post("/threads/thread_missing/messages", json={"content": "안녕"})
+
+    assert response.status_code == 404
+    assert app.state.container.workspaces._workspaces == {}

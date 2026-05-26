@@ -65,8 +65,6 @@ class AttachmentService:
         for attachment in self.repository.list_attachments(thread_id):
             if not attachment.agent_file_path.startswith("/inputs/"):
                 continue
-            if workspace.read(attachment.agent_file_path) is not None:
-                continue
             try:
                 text = self.storage.read_uri(attachment.storage_uri).decode("utf-8")
             except UnicodeDecodeError:
