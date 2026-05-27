@@ -25,21 +25,24 @@ pip install -e .
 uvicorn main:app --reload
 ```
 
-OpenAI 모델로 실제 LLM 동작을 확인하려면 `.env` 또는 환경변수를 설정합니다.
+OpenAI 모델로 실제 LLM 동작을 확인하려면 OpenAI extra를 먼저 설치한 뒤 `.env` 또는 환경변수를 설정합니다.
 
 ```bash
+pip install -e ".[openai]"
 export MODEL_PROVIDER=openai
 export MODEL_NAME=gpt-4.1-mini
 export OPENAI_API_KEY=sk-...
 uvicorn main:app --reload
 ```
 
-로컬 Ollama를 쓰고 싶다면 다음처럼 확장할 수 있습니다.
+로컬 Ollama를 쓰고 싶다면 Ollama extra를 설치한 뒤 다음처럼 설정합니다.
 
 ```bash
+pip install -e ".[ollama]"
 export MODEL_PROVIDER=ollama
 export MODEL_NAME=qwen2.5:7b
 export OLLAMA_BASE_URL=http://localhost:11434
+uvicorn main:app --reload
 ```
 
 ## 로컬 실행 체크
@@ -48,8 +51,8 @@ export OLLAMA_BASE_URL=http://localhost:11434
 
 ```bash
 python - <<'PY'
-from sample_agents.app import app
-print(app.openapi()["info"])
+from sample_agents.app import create_app
+print(create_app().openapi()["info"])
 PY
 ```
 

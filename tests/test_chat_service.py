@@ -1,3 +1,4 @@
+from sample_agents.agents.subagents import DOCUMENT_READER, RISK_REVIEWER
 import pytest
 from sample_agents.config import Settings
 from sample_agents.integrations.search_providers import MockSearchProvider
@@ -54,3 +55,8 @@ def test_agent_run_marks_failed_on_exception(tmp_path, monkeypatch):
     assert last_run.status.value == "failed"
     assert last_run.error_message == "boom"
     assert last_run.finished_at is not None
+
+
+def test_subagents_include_system_prompt():
+    assert DOCUMENT_READER["system_prompt"]
+    assert RISK_REVIEWER["system_prompt"]
